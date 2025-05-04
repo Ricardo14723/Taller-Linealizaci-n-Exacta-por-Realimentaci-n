@@ -153,7 +153,7 @@ Ki_2 = K_aug_2(5);
 disp('Ganancias Kz_1:'); disp(Kz_2);
 disp('Ganancia Ki_1:'); disp(Ki_2);
 
-Simulación Diseño de Control Rápido
+%%%%Simulación Diseño de Control Rápido
 % Condiciones iniciales
 x0 = [0.1; 0; 0; 0]; % Pequeña desviación en x1
 e_int0 = 0;
@@ -255,7 +255,7 @@ end
 % title("Señal de control")
 % grid minor
 
-Simulación Diseño de Control Lento
+%%%%Simulación Diseño de Control Lento
 % Condiciones iniciales
 x0 = [0.1; 0; 0; 0]; % Pequeña desviación en x1
 e_int0 = 0;
