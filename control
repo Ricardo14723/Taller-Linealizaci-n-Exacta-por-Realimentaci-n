@@ -1,0 +1,442 @@
+clc; 
+clear;
+close all;
+
+syms x1 x2 x3 x4 v  u Jl Rm Kg Km h g m Jh Ks
+
+x = [x1; x2; x3; x4];
+
+% Ecuaciones del sistema
+f1 = x3;
+f2 = x4;
+f3 = (Ks / Jh) * x2 - (Km^2 * Kg^2) / (Rm * Jh) * x3;
+f4 = (-Ks / Jh - Ks / Jl) * x2 + (Km^2 * Kg^2) / (Rm * Jh) * x3 + (m * g * h) / Jl * sin(x1 + x2);
+f = [f1; f2; f3; f4];
+
+g = [0; 0; (Km*Kg)/(Rm*Jh); -(Km*Kg)/(Rm*Jh)];
+
+% Salida h(x)
+h = x1 + x2;
+
+%% Difeomorfismo y grado relativo
+Lfh = gradient(h,x).'*f;
+Lgh = gradient(h,x).'*g;
+Lf2h = gradient(Lfh,x).'*f;
+LgLfh = gradient(Lfh,x).'*g;
+Lf3h = gradient(Lf2h,x).'*f;
+LgL2h = gradient(Lf2h,x).'*g;
+Lf4h = simplify(gradient(Lf3h,x).'*f);
+LgL3h = simplify(gradient(Lf3h,x).'*g);
+
+% Verificar grado relativo
+disp('Lgh:'); disp(simplify(Lgh));
+disp('LgLfh:'); disp(simplify(LgLfh));
+disp('LgL2h:'); disp(simplify(LgL2h));
+disp('LgL3h:'); disp(simplify(LgL3h));
+
+% Difeomorfismo
+Z1 = h;
+Z2 = Lfh;
+Z3 = simplify(Lf2h);
+Z4 = simplify(Lf3h);
+u = 1/LgL3h * (-Lf4h + v);
+u = simplify(u);
+disp("z₁ ="); pretty(Z1)
+disp([Z1; Z2; Z3; Z4])
+
+syms x1 x2 x3 x4 v  u real
+
+Ks = 1.61;             % Spring stiffness [N/m]
+Jh = 0.0021;           % Inertia of hub [kg*m^2]
+m = 0.403;             % Link mass [kg]
+g = -9.81;             % Gravity [m/s^2]
+h = 0.06;              % Height of center of mass [m]
+Km = 0.00767;          % Motor constant [N/rad/s]
+Kg = 70;               % Gear ratio
+Jl = 0.0059;           % Load inertia [kg*m^2]
+Rm = 2.6;              % Motor resistance [Ohm]
+
+
+x = [x1; x2; x3; x4];
+
+% Ecuaciones del sistema
+f1 = x3;
+f2 = x4;
+f3 = (Ks / Jh) * x2 - (Km^2 * Kg^2) / (Rm * Jh) * x3;
+f4 = (-Ks / Jh - Ks / Jl) * x2 + (Km^2 * Kg^2) / (Rm * Jh) * x3 + (m * g * h) / Jl * sin(x1 + x2);
+f = [f1; f2; f3; f4];
+
+g = [0; 0; (Km*Kg)/(Rm*Jh); -(Km*Kg)/(Rm*Jh)];
+
+% Salida h(x)
+h = x1 + x2;
+
+%% Difeomorfismo y grado relativo
+Lfh = gradient(h,x).'*f;
+Lgh = gradient(h,x).'*g;
+Lf2h = gradient(Lfh,x).'*f;
+LgLfh = gradient(Lfh,x).'*g;
+Lf3h = gradient(Lf2h,x).'*f;
+LgL2h = gradient(Lf2h,x).'*g;
+Lf4h = simplify(gradient(Lf3h,x).'*f);
+LgL3h = simplify(gradient(Lf3h,x).'*g);
+
+% Verificar grado relativo
+disp('Lgh:'); disp(simplify(Lgh));
+disp('LgLfh:'); disp(simplify(LgLfh));
+disp('LgL2h:'); disp(simplify(LgL2h));
+disp('LgL3h:'); disp(simplify(LgL3h));
+
+% Difeomorfismo
+Z1 = h;
+Z2 = Lfh;
+Z3 = Lf2h;
+Z4 = Lf3h;
+
+% Control linealizante
+u = 1/LgL3h * (-Lf4h + v);
+u = simplify(u);
+
+% % Generar funciones de MATLAB
+Lf4h_fun = matlabFunction(Lf4h, 'Vars', {x1, x2, x3, x4});
+LgL3h_fun = matlabFunction(LgL3h, 'Vars', {x1, x2, x3, x4});
+
+u_fun = matlabFunction(u, 'Vars', {x1, x2, x3, x4, v});
+Z1_fun = matlabFunction(Z1, 'Vars', {x1, x2, x3, x4});
+Z2_fun = matlabFunction(Z2, 'Vars', {x1, x2, x3, x4});
+Z3_fun = matlabFunction(Z3, 'Vars', {x1, x2, x3, x4});
+Z4_fun = matlabFunction(Z4, 'Vars', {x1, x2, x3, x4});
+
+%% Diseño del control
+Az = [0 1 0 0; 0 0 1 0; 0 0 0 1; 0 0 0 0];
+Bz = [0; 0; 0; 1];
+Cz = [1 0 0 0];
+
+Co = ctrb(Az, Bz);
+rango_Co = rank(Co);
+if rango_Co == size(Az, 1)
+    disp('El sistema es completamente controlable.');
+else
+    disp('El sistema NO es completamente controlable.');
+end
+
+% Con integrador
+Aa = [Az zeros(4,1); Cz zeros(1,1)];
+Ba = [Bz; zeros(1,1)];
+
+
+% Dinámica Rápida
+zeta_1 = 1;
+tsdes_1 = 2;
+wn_1 = 4.6 / (zeta_1 * tsdes_1);
+polos1_1 = roots([1 2*zeta_1*wn_1 wn_1^2]);  % polos complejos conjugados
+polos2_1 = [polos1_1' 5*polos1_1' 10*real(polos1_1(1))]  % 5 polos en total
+
+K_aug_1 = acker(Aa, Ba, polos2_1);
+Kz_1 = K_aug_1(1:4);
+Ki_1 = K_aug_1(5);
+
+disp('Ganancias Kz_1:'); disp(Kz_1);
+disp('Ganancia Ki_1:'); disp(Ki_1);
+
+% Dinámica lenta
+zeta_2 = 1;
+tsdes_2 = 5;
+wn_2 = 4.6 / (zeta_2 * tsdes_2);
+polos1_2 = roots([1 2*zeta_1*wn_2 wn_2^2]);  % polos complejos conjugados
+polos2_2 = [polos1_2' 5*polos1_2' 10*real(polos1_2(1))]  % 5 polos en total
+
+K_aug_2 = acker(Aa, Ba, polos2_2);
+Kz_2 = K_aug_2(1:4);
+Ki_2 = K_aug_2(5);
+
+disp('Ganancias Kz_1:'); disp(Kz_2);
+disp('Ganancia Ki_1:'); disp(Ki_2);
+
+Simulación Diseño de Control Rápido
+% Condiciones iniciales
+x0 = [0.1; 0; 0; 0]; % Pequeña desviación en x1
+e_int0 = 0;
+X0 = [x0; e_int0];
+
+ref = deg2rad(190); % Queremos y = x1 + x2 -> 0
+Ts = 0.01;
+tspan = 35;
+t = 0: Ts: tspan;
+
+Tsa = [0 Ts];
+
+y_1 = zeros(size(t));
+refh = zeros(size(t));
+u_vals_1 = zeros(size(t));
+Ess_1 = zeros(length(t), 4);
+
+for i = 1:length(t)
+    
+    [t1, Xmed] = ode45(@(t, X_1) odefun(t, X_1, u_fun, Z1_fun, Z2_fun, Z3_fun, Z4_fun, Kz_1, Ki_1, ref).dX, Tsa, X0);
+    X_1 = Xmed(end, :);
+
+    % solo para ver la señal de control
+    data = odefun(t, X_1, u_fun, Z1_fun, Z2_fun, Z3_fun, Z4_fun, Kz_1, Ki_1, ref);
+    u_vals_1(i) = data.u;
+
+    x1 = X_1(1,1); 
+    x2 = X_1(1,2); 
+    x3 = X_1(1,3); 
+    x4 = X_1(1,4); 
+    e_int = X_1(1,5);
+
+    % AGREGAR RUIDO A x1 ENTRE 23 Y 24 SEGUNDOS
+    % if t(i) >= 15 && t(i) < 15.05
+    %     ruido = deg2rad(15);  % movimiento de 20° fuera de refpor 1s
+    %     x1 = x1 - ruido;
+    % end
+
+    X_1(1,1) = x1;
+    Ess_1(i, :) = [x1, x2, x3, x4];
+    
+    y_1(i) = x1 + x2; 
+
+    X0 = X_1;
+    refh(i) = ref;
+
+    if i == 5/Ts
+        ref = deg2rad(190);
+    end
+    if i == 12/Ts
+        ref = deg2rad(-60);
+    end
+    if i == 20/Ts
+        ref = deg2rad(90);
+    end
+end
+
+% figure('Position', [100, 100, 1200, 800]);
+% subplot(2,2,1)
+% 
+% plot(t, y, "LineWidth", 2)
+% hold on
+% plot(t, refh, "--", "LineWidth", 2)
+% hold off
+% xlabel("Tiempo [s]")
+% ylabel("Posición angular [rad]")
+% legend("Posición angular", "Referencia")
+% title("Respuesta a Referencia")
+% grid minor
+% 
+% subplot(2,2,2)
+% plot(t, Ess_1(:,1), "LineWidth", 2)
+% hold on
+% plot(t, Ess_1(:,2), "LineWidth", 2)
+% hold off
+% xlabel("Tiempo [s]")
+% ylabel("Estados")
+% legend("Ángulo x1", "Ángulo x2")
+% title("x_1 y x_2");
+% grid minor
+% 
+% subplot(2,2,3)
+% plot(t, Ess_1(:,3), "LineWidth", 2)
+% hold on
+% plot(t, Ess_1(:,4), "LineWidth", 2)
+% hold off
+% xlabel("Tiempo [s]")
+% ylabel("Torque [N.m]")
+% legend("Velocidad ", "Acceleración")
+% title("Señal de control")
+% grid minor
+% 
+% subplot(2,2,4)
+% plot(t, u_vals, "LineWidth", 2)
+% hold off
+% xlabel("Tiempo [s]")
+% ylabel("Torque [N.m]")
+% legend("Torque")
+% title("Señal de control")
+% grid minor
+
+Simulación Diseño de Control Lento
+% Condiciones iniciales
+x0 = [0.1; 0; 0; 0]; % Pequeña desviación en x1
+e_int0 = 0;
+X0 = [x0; e_int0];
+
+ref = deg2rad(190); % Queremos y = x1 + x2 -> 0
+Ts = 0.01;
+tspan = 35;
+t = 0: Ts: tspan;
+
+Tsa = [0 Ts];
+ref_times = [1, 5, 12, 20];
+ref_values = [0.2, 0.4, 0.1, -0.2];
+
+y_2 = zeros(size(t));
+refh = zeros(size(t));
+u_vals_2 = zeros(size(t));
+Ess_2 = zeros(length(t), 4);
+
+for i = 1:length(t)
+    
+    [t1, Xmed] = ode45(@(t, X_1) odefun(t, X_1, u_fun, Z1_fun, Z2_fun, Z3_fun, Z4_fun, Kz_2, Ki_2, ref).dX, Tsa, X0);
+    X_2 = Xmed(end, :);
+
+    % solo para ver la señal de control
+    data = odefun(t, X_2, u_fun, Z1_fun, Z2_fun, Z3_fun, Z4_fun, Kz_2, Ki_2, ref);
+    u_vals_2(i) = data.u;
+     
+    x1 = X_2(1,1); 
+    x2 = X_2(1,2); 
+    x3 = X_2(1,3); 
+    x4 = X_2(1,4); 
+    e_int = X_2(1,5);
+    
+     % AGREGAR RUIDO A x1 ENTRE 23 Y 24 SEGUNDOS
+    % if t(i) >= 15 && t(i) < 15.05
+    %     ruido = deg2rad(15);  % movimiento de 20° fuera de refpor 1s
+    %     x1 = x1 - ruido;
+    % end
+    X_2(1,1) = x1;
+
+    Ess_2(i, :) = [x1, x2, x3, x4];
+    
+    y_2(i) = x1 + x2; 
+
+    X0 = X_2;
+    refh(i) = ref;
+
+    if i == 5/Ts
+        ref = deg2rad(190);
+    end
+    if i == 12/Ts
+         ref = deg2rad(-60);
+    end
+    if i == 20/Ts
+        ref = deg2rad(90);
+    end
+end
+
+figure;      
+plot(t, y_1, "LineWidth", 2)
+hold on
+plot(t, y_2, "LineWidth", 2)
+plot(t, refh,  "k--", "LineWidth", 2)
+hold off
+xlabel("Tiempo [s]")
+ylabel("Posición angular [rad]")
+legend("Posición angular rápida", "Posición angular lenta", "Referencia")
+grid minor
+figure;
+
+subplot(2,1,1);
+plot(t, Ess_1(:,3), "LineWidth", 2)
+hold on
+plot(t, Ess_1(:,4), "LineWidth", 2)
+hold off
+xlabel("Tiempo [s]")
+ylabel("Estados")
+legend("x_3 [rad/s]   Rápido", "x_4 [rad/{s^2}]  Rápido")
+grid minor
+
+subplot(2,1,2);
+plot(t, Ess_2(:,3), "LineWidth", 2)
+hold on
+plot(t, Ess_2(:,4), "LineWidth", 2)
+xlabel("Tiempo [s]")
+ylabel("Estados")
+legend("x_3 [rad/s]   Lento", "x_4 [rad/s²]  Lento")
+grid minor
+
+
+figure;
+plot(t, u_vals_1, "LineWidth", 2)
+hold on
+plot(t, u_vals_2, "LineWidth", 2)
+xlabel("Tiempo [s]")
+ylabel("Voltaje [V]")
+legend("Voltaje con control rápido", "Voltaje con control lento")
+grid minor
+
+% Función de dinámica
+function data = odefun(t, X_1, u_fun, Z1_fun, Z2_fun, Z3_fun, Z4_fun, Kz_1, Ki_1, y_d)
+
+    x1 = X_1(1); 
+    x2 = X_1(2); 
+    x3 = X_1(3); 
+    x4 = X_1(4); 
+    e_int = X_1(5);
+
+    Ks = 1.61; 
+    Jh = 0.0021; 
+    m = 0.403; 
+    g = -9.81; 
+    h = 0.06;
+    Km = 0.00767; 
+    Kg = 70; 
+    Jl = 0.0059; 
+    Rm = 2.6;
+    
+    % Calcular z
+    z = [Z1_fun(x1, x2, x3, x4);
+         Z2_fun(x1, x2, x3, x4);
+         Z3_fun(x1, x2, x3, x4);
+         Z4_fun(x1, x2, x3, x4)];
+    
+    % Verificar dimensiones de z
+    if size(z,1) ~= 4 || size(z,2) ~= 1
+        error('z debe ser un vector 4x1, pero tiene tamaño: %s', mat2str(size(z)));
+    end
+    
+    % Controlador lineal
+    v = -Kz_1 * z + Ki_1 * e_int;
+    
+    % Verificar dimensiones de v
+    if ~isscalar(v)
+        error('v debe ser un escalar, pero tiene tamaño: %s', mat2str(size(v)));
+    end
+    
+    % Control linealizante
+    u = u_fun(x1, x2, x3, x4, v);
+    
+    % Verificar dimensiones de u
+    if ~isscalar(u)
+        error('u debe ser un escalar, pero tiene tamaño: %s', mat2str(size(u)));
+    end
+    
+    % Dinámica no lineal
+    f = [x3;
+         x4;
+         (Ks/Jh)*x2 - (Km^2*Kg^2)/(Rm*Jh)*x3;
+         (-Ks/Jh - Ks/Jl)*x2 + (Km^2*Kg^2)/(Rm*Jh)*x3 + (m*g*h)/Jl*sin(x1+x2)];
+    g = [0; 0; (Km*Kg)/(Rm*Jh); -(Km*Kg)/(Rm*Jh)];
+    
+    % Verificar dimensiones de f y g
+    if size(f,1) ~= 4 || size(f,2) ~= 1
+        error('f debe ser un vector 4x1, pero tiene tamaño: %s', mat2str(size(f)));
+    end
+    if size(g,1) ~= 4 || size(g,2) ~= 1
+        error('g debe ser un vector 4x1, pero tiene tamaño: %s', mat2str(size(g)));
+    end
+    
+    % Calcular derivada
+    dx = f + g * u;
+    
+    % Verificar dimensiones de dx
+    if size(dx,1) ~= 4 || size(dx,2) ~= 1
+        error('dx debe ser un vector 4x1, pero tiene tamaño: %s', mat2str(size(dx)));
+    end
+    
+    % Dinámica del integrador
+    y = x1 + x2;
+    de_int = y_d - y;
+    
+    % Vector de derivadas
+    data.dX = [dx; de_int];
+    data.z = z;
+    data.v = v;
+    data.u = u;
+end
+
+% Guardar todas las funciones necesarias para Simulink
+save('control_funs.mat', ...
+    'Lf4h_fun', 'LgL3h_fun', ...
+    'Z1_fun', 'Z2_fun', 'Z3_fun', 'Z4_fun');
